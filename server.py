@@ -49,6 +49,19 @@ def in_ranges(n: int, ranges):
             return True
     return False
 
+@app.get("/api/meta")
+def api_meta():
+    cache = ensure_cache_fresh()
+    return jsonify({"ok": True, "updated_at": cache.get("updated_at", 0), "districts": sorted(ALLOWED_DISTRICTS)})
+
+@app.get("/api/update")
+def api_update():
+    rules = fetch_and_parse_rules()
+    rules = [r for r in rules if r.get("area_district") in ALLOWED_DISTRICTS]
+    cache = {"updated_at": int(time.time()), "rules": rules}
+    save_cache(cache)
+    return jsonify({"ok": True, "rules": len(rules), "districts": sorted(ALLOWED_DISTRICTS)})
+
 @app.get("/api/query")
 def api_query():
     district = normalize_text(request.args.get("district"))
@@ -56,10 +69,13 @@ def api_query():
     lin_str = normalize_text(request.args.get("lin"))
 
     if district not in ALLOWED_DISTRICTS:
-        return jsonify({"ok": False, "error": "行政區不在查詢範圍"})
+        return jsonify({"ok": False, "error": "行政區不在查詢範圍（北區/北屯區/西區/西屯區/南屯區）"})
+
+    if not li:
+        return jsonify({"ok": False, "error": "請輸入里名"})
 
     if not lin_str.isdigit():
-        return jsonify({"ok": False, "error": "鄰請輸入數字"})
+        return jsonify({"ok": False, "error": "鄰請輸入數字（正整數）"})
 
     lin = int(lin_str)
     cache = ensure_cache_fresh()
@@ -91,12 +107,16 @@ def api_query():
         return jsonify({
             "ok": True,
             "status": "manual",
-            "message": "官方資料含道路或文字界線，需人工判定",
-            "candidates": manual
+            "message": "官方資料含道路/方位/文字界線，僅輸入里+鄰無法百分百判定，請依原文人工確認。",
+            "candidates": manual[:50]
         })
 
-    return jsonify({"ok": True, "status": "not_found", "message": "官方資料查無對應"})
+    return jsonify({"ok": True, "status": "not_found", "message": "依教育局學區查詢資料查無對應"})
 
 @app.get("/")
 def index():
     return send_from_directory("web", "index.html")
+
+@app.get("/<path:path>")
+def static_files(path):
+    return send_from_directory("web", path)

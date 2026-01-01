@@ -55,11 +55,15 @@ def api_meta():
 
 @app.get("/api/update")
 def api_update():
-    rules = fetch_and_parse_rules()
-    rules = [r for r in rules if r.get("area_district") in ALLOWED_DISTRICTS]
-    cache = {"updated_at": int(time.time()), "rules": rules}
-    save_cache(cache)
-    return jsonify({"ok": True, "rules": len(rules), "districts": sorted(ALLOWED_DISTRICTS)})
+    try:
+        rules = fetch_and_parse_rules()
+        rules = [r for r in rules if r.get("area_district") in ALLOWED_DISTRICTS]
+        cache = {"updated_at": int(time.time()), "rules": rules}
+        save_cache(cache)
+        return jsonify({"ok": True, "rules": len(rules), "districts": sorted(ALLOWED_DISTRICTS)})
+    except Exception as e:
+        # 不讓服務掛掉，回傳錯誤給前端顯示
+        return jsonify({"ok": False, "error": f"更新失敗：{type(e).__name__}"})
 
 @app.get("/api/query")
 def api_query():

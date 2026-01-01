@@ -121,7 +121,7 @@ def fetch_page(page: int):
     return r.text
 
 def parse_table_rows(html: str):
-    soup = BeautifulSoup(html, "lxml")
+    soup = BeautifulSoup(html, "html.parser")
     rows = []
     for tr in soup.find_all("tr"):
         tds = tr.find_all("td")

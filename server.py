@@ -48,10 +48,9 @@ def in_ranges(n: int, ranges):
         if isinstance(r, list) and len(r) == 2 and r[0] <= n <= r[1]:
             return True
     return False
-
 @app.get("/api/meta")
 def api_meta():
-    cache = ensure_cache_fresh()
+    cache = load_cache()
     return jsonify({"ok": True, "updated_at": cache.get("updated_at", 0), "districts": sorted(ALLOWED_DISTRICTS)})
 
 @app.get("/api/update")

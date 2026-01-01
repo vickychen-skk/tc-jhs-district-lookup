@@ -1,13 +1,16 @@
-from flask import Flask, request, jsonify, send_from_directory
 import os
 import json
 import time
+from flask import Flask, request, jsonify, send_from_directory
+from parser import fetch_and_parse_rules
 
-app = Flask(__name__, static_folder="web")
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+CACHE_FILE = os.path.join(APP_DIR, "cache.json")
 
-CACHE_FILE = "cache.json"
 ALLOWED_DISTRICTS = {"北區", "北屯區", "西區", "西屯區", "南屯區"}
 CACHE_TTL_SECONDS = 86400  # 24 小時
+
+app = Flask(__name__, static_folder="web")
 
 def load_cache():
     if not os.path.exists(CACHE_FILE):
@@ -19,31 +22,80 @@ def save_cache(data):
     with open(CACHE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def ensure_cache():
+def ensure_cache_fresh():
     cache = load_cache()
     now = int(time.time())
-    if now - cache["updated_at"] > CACHE_TTL_SECONDS or not cache["rules"]:
-        # 之後由 parser.py 來補
-        cache = {"updated_at": now, "rules": []}
+    if (now - cache.get("updated_at", 0) > CACHE_TTL_SECONDS) or (not cache.get("rules")):
+        rules = fetch_and_parse_rules()
+        rules = [r for r in rules if r.get("area_district") in ALLOWED_DISTRICTS]
+        cache = {"updated_at": now, "rules": rules}
         save_cache(cache)
     return cache
 
+def normalize_text(s: str) -> str:
+    return (s or "").strip().replace("　", "").replace(" ", "")
+
+def normalize_li(li: str) -> str:
+    li = normalize_text(li)
+    if li and not li.endswith("里"):
+        li += "里"
+    return li
+
+def in_ranges(n: int, ranges):
+    for r in ranges:
+        if isinstance(r, int) and n == r:
+            return True
+        if isinstance(r, list) and len(r) == 2 and r[0] <= n <= r[1]:
+            return True
+    return False
+
 @app.get("/api/query")
-def query():
-    district = request.args.get("district", "").strip()
-    li = request.args.get("li", "").strip()
-    lin = request.args.get("lin", "").strip()
+def api_query():
+    district = normalize_text(request.args.get("district"))
+    li = normalize_li(request.args.get("li"))
+    lin_str = normalize_text(request.args.get("lin"))
 
     if district not in ALLOWED_DISTRICTS:
         return jsonify({"ok": False, "error": "行政區不在查詢範圍"})
 
-    if not lin.isdigit():
+    if not lin_str.isdigit():
         return jsonify({"ok": False, "error": "鄰請輸入數字"})
 
-    return jsonify({
-        "ok": True,
-        "message": "伺服器正常，下一步會接上官方學區資料"
-    })
+    lin = int(lin_str)
+    cache = ensure_cache_fresh()
+    rules = cache.get("rules", [])
+
+    hits = []
+    manual = []
+
+    for r in rules:
+        if r.get("area_district") != district:
+            continue
+        if r.get("li") != li:
+            continue
+
+        if r.get("type") == "all":
+            hits.append(r)
+        elif r.get("type") == "ranges":
+            if in_ranges(lin, r.get("ranges", [])):
+                hits.append(r)
+        elif r.get("type") == "manual":
+            manual.append(r)
+
+    if hits:
+        schools = sorted(set(h["school"] for h in hits))
+        status = "ok" if len(schools) == 1 else "overlap"
+        return jsonify({"ok": True, "status": status, "schools": schools})
+
+    if manual:
+        return jsonify({
+            "ok": True,
+            "status": "manual",
+            "message": "官方資料含道路或文字界線，需人工判定",
+            "candidates": manual
+        })
+
+    return jsonify({"ok": True, "status": "not_found", "message": "官方資料查無對應"})
 
 @app.get("/")
 def index():

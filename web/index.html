@@ -3,20 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>臺中市國中學區查詢</title>
+  <title>臺中市國中學區查詢（教育局來源）</title>
   <style>
-    body{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; max-width:720px; margin:24px auto; padding:0 16px;}
-    .row{margin:12px 0;}
-    input,select,button{font-size:16px; padding:8px;}
+    body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif; max-width:760px; margin:24px auto; padding:0 16px;}
+    .row{margin:10px 0;}
+    input,select,button{font-size:16px; padding:8px 10px;}
     button{cursor:pointer}
-    .box{background:#f5f5f5; padding:12px; border-radius:8px; white-space:pre-wrap;}
+    .card{background:#f6f6f6; padding:12px; border-radius:10px; white-space:pre-wrap;}
+    .muted{color:#666; font-size:13px;}
   </style>
 </head>
 <body>
-  <h2>臺中市國中學區查詢</h2>
+  <h2>臺中市國中學區查詢（官方：教育局學區查詢頁）</h2>
+  <div class="muted" id="meta">載入中…</div>
 
   <div class="row">
-    行政區：
+    <label>行政區：</label>
     <select id="district">
       <option>北區</option>
       <option>北屯區</option>
@@ -27,42 +29,22 @@
   </div>
 
   <div class="row">
-    里：<input id="li" placeholder="例如：明德里">
+    <label>里：</label>
+    <input id="li" placeholder="例如：何南里 / 明德里 / 公德里" />
   </div>
 
   <div class="row">
-    鄰：<input id="lin" type="number" placeholder="例如：10">
+    <label>鄰：</label>
+    <input id="lin" type="number" min="1" placeholder="例如：20" />
   </div>
 
   <div class="row">
-    <button onclick="query()">查詢</button>
+    <button id="btn">查詢</button>
+    <button id="upd">更新官方資料</button>
   </div>
 
-  <div class="box" id="out">請輸入後按查詢</div>
+  <div class="card" id="out">請輸入行政區＋里＋鄰後按「查詢」。</div>
 
-<script>
-async function query(){
-  const d = document.getElementById('district').value;
-  const li = document.getElementById('li').value;
-  const lin = document.getElementById('lin').value;
-  const out = document.getElementById('out');
-  out.textContent = '查詢中…';
-
-  const res = await fetch(`/api/query?district=${d}&li=${li}&lin=${lin}`);
-  const data = await res.json();
-
-  if(!data.ok){
-    out.textContent = '❌ ' + data.error;
-    return;
-  }
-  if(data.status === 'ok'){
-    out.textContent = '✅ 國中：' + data.schools.join(', ');
-  }else if(data.status === 'manual'){
-    out.textContent = '⚠️ 需人工判定\n' + data.candidates.map(c=>c.raw).join('\n');
-  }else{
-    out.textContent = '❌ 查無資料';
-  }
-}
-</script>
+  <script src="app.js"></script>
 </body>
 </html>

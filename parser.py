@@ -108,7 +108,6 @@ def extract_area_rules(area_text: str, school: str):
             })
 
     return rules
-
 def fetch_page(page: int):
     params = {
         "keyword": "",
@@ -116,11 +115,11 @@ def fetch_page(page: int):
         "school_region_id": "",
         "page": str(page),
     }
-headers = {
-    "User-Agent": "Mozilla/5.0",
-    "Accept-Language": "zh-TW,zh;q=0.9",
-}
-r = requests.get(BASE_URL, params=params, headers=headers, timeout=30)
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept-Language": "zh-TW,zh;q=0.9",
+    }
+    r = requests.get(BASE_URL, params=params, headers=headers, timeout=30)
     r.raise_for_status()
     return r.text
 

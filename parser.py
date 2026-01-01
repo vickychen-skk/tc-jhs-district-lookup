@@ -121,7 +121,6 @@ headers = {
     "Accept-Language": "zh-TW,zh;q=0.9",
 }
 r = requests.get(BASE_URL, params=params, headers=headers, timeout=30)
-
     r.raise_for_status()
     return r.text
 
